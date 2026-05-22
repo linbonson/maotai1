@@ -1,1 +1,96 @@
-<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>茅台价格指数</title><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script><style>@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap');:root{--gold:#c9a84c;--gold-light:#e8c97a;--gold-dark:#8a6f2e;--red:#c0392b;--red-light:#e74c3c;--green:#27ae60;--bg:#0d0d0d;--bg2:#141414;--bg3:#1a1a1a;--
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>茅台价格追踪</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body{margin:0;padding:16px;background:#111;color:#eee;font-family:sans-serif}
+h2{color:#c9a84c;text-align:center;margin-bottom:20px}
+.card{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:16px;margin-bottom:16px}
+.row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+label{font-size:12px;color:#888;display:block;margin-bottom:4px}
+input{background:#222;border:1px solid #444;border-radius:6px;padding:8px;color:#eee;font-size:14px;width:100%}
+button{background:#c9a84c;border:none;border-radius:6px;padding:10px 18px;color:#111;font-weight:bold;font-size:14px;cursor:pointer;white-space:nowrap}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.stat{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:12px;text-align:center}
+.stat-label{font-size:10px;color:#888;margin-bottom:4px}
+.stat-val{font-size:20px;font-weight:bold;color:#c9a84c}
+.up{color:#e74c3c}.down{color:#27ae60}
+table{width:100%;border-collapse:collapse;font-size:13px}
+td{padding:10px 8px;border-bottom:1px solid #222}
+td:last-child{text-align:right}
+.del{background:none;border:none;color:#555;cursor:pointer;font-size:14px}
+</style>
+</head>
+<body>
+<h2>🍶 茅台价格指数</h2>
+<div class="stats">
+<div class="stat"><div class="stat-label">最新价格</div><div class="stat-val" id="s1">--</div></div>
+<div class="stat"><div class="stat-label">累计涨跌</div><div class="stat-val" id="s2">--</div></div>
+<div class="stat"><div class="stat-label">记录天数</div><div class="stat-val" id="s3">0</div></div>
+</div>
+<div class="card">
+<div class="row">
+<div style="flex:1"><label>日期</label><input type="date" id="d"></div>
+<div style="flex:1"><label>价格（元）</label><input type="number" id="p" placeholder="如 1290"></div>
+<button onclick="add()">录入</button>
+</div>
+</div>
+<div class="card">
+<canvas id="chart" height="200"></canvas>
+</div>
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+<span style="color:#888;font-size:12px">历史记录</span>
+<button onclick="clearAll()" style="background:#333;color:#aaa;font-size:12px;padding:4px 10px">清空</button>
+</div>
+<table id="list"></table>
+</div>
+<script>
+var KEY='mt_data',REF=1290,chart=null;
+var today=new Date(),y=today.getFullYear(),m=String(today.getMonth()+1).padStart(2,'0'),dd=String(today.getDate()).padStart(2,'0');
+document.getElementById('d').value=y+'-'+m+'-'+dd;
+function load(){try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch{return[]}}
+function save(d){localStorage.setItem(KEY,JSON.stringify(d))}
+function add(){
+var dv=document.getElementById('d').value,pv=parseFloat(document.getElementById('p').value);
+if(!dv||isNaN(pv)||pv<=0){alert('请填写正确的日期和价格');return}
+var data=load(),i=data.findIndex(function(r){return r.d===dv});
+if(i>=0)data[i].p=pv;else data.push({d:dv,p:pv});
+data.sort(function(a,b){return a.d>b.d?1:-1});
+save(data);document.getElementById('p').value='';render();
+}
+function del(d){save(load().filter(function(r){return r.d!==d}));render()}
+function clearAll(){if(confirm('确认清空？')){save([]);render()}}
+function render(){
+var data=load();
+document.getElementById('s3').textContent=data.length;
+if(data.length){
+var last=data[data.length-1].p;
+document.getElementById('s1').textContent=last;
+if(data.length>1){var diff=last-data[0].p,pct=(diff/data[0].p*100).toFixed(1);document.getElementById('s2').textContent=(diff>=0?'+':'')+diff.toFixed(0)+'('+pct+'%)';document.getElementById('s2').className='stat-val '+(diff>0?'up':'down')}
+}
+renderChart(data);renderList(data);
+}
+function renderChart(data){
+var ctx=document.getElementById('chart').getContext('2d');
+if(chart)chart.destroy();
+if(data.length<2)return;
+var labels=data.map(function(r){return r.d.slice(5)}),prices=data.map(function(r){return r.p});
+var last=prices[prices.length-1],first=prices[0],color=last>=first?'#e74c3c':'#27ae60';
+chart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{data:prices,borderColor:color,backgroundColor:color.replace(')',',0.1)').replace('rgb','rgba'),borderWidth:2,pointRadius:3,fill:true,tension:0.3},{data:Array(labels.length).fill(REF),borderColor:'rgba(201,168,76,0.5)',borderWidth:1,borderDash:[4,4],pointRadius:0,fill:false}]},options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#666',maxTicksLimit:6}},y:{ticks:{color:'#666'}}}}});
+}
+function renderList(data){
+var t=document.getElementById('list');
+if(!data.length){t.innerHTML='<tr><td style="text-align:center;color:#555">暂无记录</td></tr>';return}
+t.innerHTML=[...data].reverse().map(function(r,i,arr){
+var prev=arr[i+1],ch=prev?((r.p-prev.p)/prev.p*100).toFixed(1):null;
+return'<tr><td style="color:#888">'+r.d+'</td><td style="color:#c9a84c;font-weight:bold">'+r.p+'</td><td>'+(ch!==null?'<span class="'+(ch>=0?'up':'down')+'">'+(ch>=0?'▲':'▼')+Math.abs(ch)+'%</span>':'首录')+'</td><td><button class="del" onclick="del(\''+r.d+'\')">✕</button></td></tr>';
+}).join('');
+}
+render();
+</script>
+</body>
+</html>
